@@ -992,13 +992,10 @@ async function main() {
         (e) => {
             e.preventDefault();
             if (e.touches.length === 1 && down) {
-
-                if (!down) return;
-
                 e.preventDefault();
 
-                let dx = sensitivity * (e.clientX - startX);
-                let dy = sensitivity * (e.clientY - startY);
+                let dx = sensitivity * (e.touches[0].clientX - startX);
+                let dy = sensitivity * (e.touches[0].clientY - startY);
 
                 // 회전 행렬 생성
                 let rotationY = axisAngleRotationMatrix([0, 1, 0], dx); // Y축 회전
@@ -1009,11 +1006,10 @@ async function main() {
                 viewMatrix = multiplyMatrices(viewMatrix, rotationX); // 카메라의 로컬 좌표계에서 X축 회전
 
                 console.log("Mouse move:", dx, dy, "New viewMatrix:", viewMatrix);
-                
+
                 // 시작점 업데이트
-                startX = e.clientX;
-                startY = e.clientY;
-                        
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
                 // let inv = invert4(viewMatrix);
                 // let dx = (4 * (e.touches[0].clientX - startX)) / innerWidth;
                 // let dy = (4 * (e.touches[0].clientY - startY)) / innerHeight;
