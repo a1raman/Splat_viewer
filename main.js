@@ -1270,7 +1270,7 @@ async function main() {
                 rotationMatrix = createIdentityMatrix3x3(); //기존 rotationMatrix 초기화
             }
             //초기 틀어짐 방지
-            rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, orbit_rotationMatrix.value);            
+            rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, viewpoint_rotationMatrix.value);            
             
         }else{ //spacebar눌러서 viewpoint 받기 전
             rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, init_rotationMatrix.value);
@@ -1431,15 +1431,15 @@ async function main() {
         joystickMovement.style.transform = `translate(${moveX - 50}%, ${moveY - 50}%)`;
 
         // Update view matrix based on joystick movement
-        updateViewMatrix(moveX, moveY);
+        updateViewMatrixJoy(moveX, moveY);
     }
 
     function resetJoystickMovement() {
         joystickMovement.style.transform = 'translate(-50%, -50%)';
-        updateViewMatrix(0, 0); // Reset view matrix when joystick is released
+        updateViewMatrixJoy(0, 0); // Reset view matrix when joystick is released
     }
 
-    function updateViewMatrix(joystickX, joystickY) {
+    function updateViewMatrixJoy(joystickX, joystickY) {
         let inv = invert4(viewMatrix);
         let tempInv = inv;
         const normalize = (value, max) => value / max;
@@ -1468,7 +1468,7 @@ async function main() {
     function handleContinuousMovement() {
         if (isMoving) {
             // Update view matrix based on the last joystick movement
-            updateViewMatrix(moveX, moveY);
+            updateViewMatrixJoy(moveX, moveY);
         }
         requestAnimationFrame(handleContinuousMovement);
     }
@@ -1605,17 +1605,27 @@ async function main() {
         const ty = tempInv[14];
         const tz = tempInv[13];
         const tempPositionVector = new Vector3(tx, ty, tz);
-
+        if (activeKeys.includes("KeyC")) {
+            console.log(tempPositionVector); 
+            console.log(inv[12],inv[13],inv[14]);
+        }
+        if (activeKeys.includes("KeyV")){
+            console.log(rotationMatrix.value);
+        }
         // Check for collision
         if (IsPointInsidePolygon(tempPositionVector)) {
             // If no collision, update the inverse matrix
             inv = tempInv;          
             viewMatrix = invert4(inv);
+            console.log();
         } else {
             console.log('Collision detected, movement blocked.');
         }
 
+
+
         if (spacePressed && dataCheck) {
+
             spaceStart = true;
             spaceStartinit = false;
             // 스페이스바를 누를 때마다 현재 인덱스를 증가시키고 배열의 길이로 모듈로 연산을 수행하여 루프를 만듦
@@ -1790,4 +1800,3 @@ main().catch((err) => {
     document.getElementById("spinner").style.display = "none";
     document.getElementById("message").innerText = err.toString();
 });
- 
