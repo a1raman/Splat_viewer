@@ -3,16 +3,18 @@
 	<head>
 		<title>KT Digital TWIN WebGL Viewer</title>
 		<meta charset="utf-8" />
-		<meta
+		<!-- <meta
 			name="viewport"
 			content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no"
-		/>
+		/> -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="viewport" content="viewport-fit=cover, user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 		<meta
 			name="apple-mobile-web-app-status-bar-style"
 			content="black-translucent"
 		/>
 		<style>
+
 			body {
 				overflow: hidden;
 				margin: 0;
@@ -210,7 +212,20 @@
 				background: #ff9d0d;
 			}
 
-
+			#error-message {
+				position: fixed;
+				bottom: 0; 
+				left: 0;
+				width: 100%; 
+				background-color: #ffffff; 
+				color: #721c24; 
+				border: 1px solid #ffffff; 
+				padding: 15px; 
+				font-weight: bold;
+				text-align: center;
+				z-index: 1000; 
+				display: none; 
+			}
 			/* 조이스틱 구현 Movement */
 			#joystick-container-movement {
 				position: absolute;
@@ -274,55 +289,33 @@
 				touch-action: none; /* Prevent default touch actions */
 			}
 
+
 		</style>
 	</head>
 	<body>
+		<div id="error-message"></div> <!-- 오류 메시지를 표시할 요소 -->
+
 		<!-- 조이스틱 컨테이너 Movement -->
 		<div id="joystick-container-movement">
 			<div id="joystick-movement"></div>
 		</div>
+		<!-- <script src="main.js"></script> -->
 
 		<!-- 조이스틱 컨테이너 Rotation-->
 		<div id="joystick-container-rotation">
 			<div id="joystick-rotation"></div>
 		</div>
+		<!-- <script src="main.js"></script>	 -->
 
-		<script>
-		  function checkScreenSize() {
-		    var joystickContainers = document.querySelectorAll('[id*="joystick-container"]');
-		    
-		    if (window.innerWidth >= 768) {
-		      // 웹 버전 (768px 이상)
-		      joystickContainers.forEach(function(container) {
-		        container.style.display = 'none';
-		      });
-		    } else {
-		      // 모바일 버전 (768px 미만)
-		      joystickContainers.forEach(function(container) {
-		        container.style.display = 'block';
-		      });
-		    }
-		  }
-		
-		  // 페이지 로드 시 실행
-		  window.onload = checkScreenSize;
-		
-		  // 화면 크기가 변경될 때마다 실행
-		  window.onresize = checkScreenSize;
-		</script>
-		
 		<div id="url-buttons">
 		        <button onclick="loadSplat('best.splat')">Art</button>
 		        <button onclick="loadSplat('4th_floor.splat')">360-24spot</button>
-		        <!-- <button onclick="loadSplat('dslr.splat')">DSLR-24spot</button> -->
 		        <!-- <button onclick="loadSplat('tbRoom.splat')">TestBed</button> -->
 		        <!-- <button onclick="loadSplat('garden.splat')">Garden</button> -->
-		        <!-- <button onclick="loadSplat('360Sample.splat')">360-9spot</button> -->
-		        <!-- <button onclick="loadSplat('0.5xVideo9.splat')">0.5x9</button>  -->
-		        <button onclick="loadSplat('0.5xVideo24.sh1.sc1.splat')">0.5x24</button>
-		        <button onclick="loadSplat('1xVideo24.sh1.sc1.splat')">1x24</button>
-		        <!-- <button onclick="loadSplat('0.5+1.0xVideo24.sh1.sc1.splat')">0.5+1x24</button>  -->
-		        <button onclick="loadSplat('garden.splat')">garden</button>
+		        <button onclick="loadSplat('360Sample.splat')">360-9spot</button>
+		        <button onclick="loadSplat('0.5xVideoSample.splat')">0.5xVid</button>
+		        <button onclick="loadSplat('1xVideoSample.splat')">1xVid</button>
+				<button onclick="loadSplat('splat_khtest.splat')">1xVid</button>
     		</div>
 
 		<script>
@@ -337,6 +330,7 @@
 				<p>Camera Position Reset : Numpad 0</p>
 			</small>
 		</p>
+		
 
 <!-- <div id="instructions">movement (arrow keys)
 - left/right arrow keys to strafe side to side
@@ -378,7 +372,7 @@ other
 
 		</details>
 			
-		</div> 0709 11:30 focal rollback
+		</div> 
 
 
 		
@@ -408,5 +402,8 @@ other
 			<span id="camid"></span>
 		</div>
 		<script src="main.js"></script>
+		<!-- <script src="joystick.js"></script> -->
+		<!-- <script type="module" src="main.js"></script>
+		<script type="module" src="joystick.js"></script> -->
 	</body>
 </html>
