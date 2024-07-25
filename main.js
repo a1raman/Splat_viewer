@@ -1,44 +1,227 @@
-//import { joystickfunc } from './joystick.js';
-let cameras = [
+let cameras = [ //focal용
     {
         id: 0,
         img_name: "00001",
-        width: 2992,
-        height: 2992,
+        width: 3840,
+        height: 2160,
         position: [
-            0, 0, 0,
+            -0.1910679031899027, -0.00010180568736527842, -0.874154583663699,
         ],
         rotation: [
             [1, 0, 0],
             [0, 1, 0],
             [0, 0, 1],
-
-            // [-0.94212312, -0.04115569,  0.33273149],
-            // [ 0.24994818,  0.57522362,  0.77887335],
-            // [-0.22345008,  0.81696022, -0.53164468],
         ],
         fy: 923.04,
         fx: 919.12,
-        // fy: 868.43888877239215,
-        // fx: 862.50726029445627,
     }
-
+];
+//변수들
+let camera = cameras[0];
+// 전역 변수로 캐시할 객체 선언
+let cachedData = null;
+let dataCheck = true; //clusterData 유무,
+let moveRangeX = [];
+let moveRangeY = [];
+let moveRangeZ = [];
+let polygonVertices = [];
+let convexHull = [];
+//Unity의 Start함수같은 것
+let positionMatrix = [
+    // 1,0,0,0,
+    // 0,1,0,0,
+    // 0,0,1,0,
+    // 0,0,0,1
+    1, 0,  0, 0,
+    0, 0, -1, 0,
+    0, 1,  0, 0,
+    0, 0,  0, 1
 ];
 
-let currentUrl = "4th_floor.splat";
+let defaultViewMatrix = [
+    1,0,0,0,
+    0,0,1,0,
+    0,-1,0,0,
+    0,0,0,1,
+    // 1,0,0,0,
+    // 0,1,0,0,
+    // 0,0,1,0,
+    // 0,0,0,1,
+];
+let viewMatrix = defaultViewMatrix;
 
-// loadSplat 함수 추가
-async function loadSplat(url) {
-    currentUrl = url;
-    await main();
+// Vector3 클래스 정의
+class Vector3 {
+    constructor(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    static fromArray(array) {
+        return new Vector3(array[0], array[1], array[2]);
+    }
+
+    static subtract(a, b) {
+        return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z);
+    }
+
+    static cross(a, b) {
+        return new Vector3(
+            a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x
+        );
+    }
+
+    static dot(a, b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    static normalize(v) {
+        const length = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        if (length === 0) {
+            return new Vector3(0, 0, 0);
+        }
+        return new Vector3(v.x / length, v.y / length, v.z / length);
+    }
+
+    static scale(v, s) {
+        return new Vector3(v.x * s, v.y * s, v.z * s);
+    }
+
+    static add(a, b) {
+        return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z);
+    }
 }
-const isSupported = !!(
-	'ontouchstart' in window || // iOS & 안드로이드
-    (navigator.pointerEanbled && navigator.maxTouchPoints > 0)
-);  // IE 11+
+function subtract(vecA, vecB) {
+    return [vecA[0] - vecB[0], vecA[1] - vecB[1], vecA[2] - vecB[2]];
+}
+function cross(vecA, vecB) {
+    return [
+        vecA[1] * vecB[2] - vecA[2] * vecB[1],
+        vecA[2] * vecB[0] - vecA[0] * vecB[2],
+        vecA[0] * vecB[1] - vecA[1] * vecB[0]
+    ];
+}
 
-let camera = cameras[0];
+function dot(vecA, vecB) {
+    return vecA[0] * vecB[0] + vecA[1] * vecB[1] + vecA[2] * vecB[2];
+}
+// 4x4 행렬 곱셈 함수
+function multiplyMatrices(a, b) {
+    let result = new Array(16).fill(0);
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            for (let k = 0; k < 4; k++) {
+                result[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
+            }
+        }
+    }
+    return result;
+}
+// 3x3
+function multiply3x3Matrices(a, b) {
+    let result = new Array(9).fill(0);
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            for (let k = 0; k < 3; k++) {
+                result[i * 3 + j] += a[i * 3 + k] * b[k * 3 + j];
+            }
+        }
+    }
+    return result;
+}
+function convert3x3To4x4(matrix3x3) {
+    if (matrix3x3.length !== 9) {
+        throw new Error("Input matrix must have 9 elements.");
+    }
 
+    let matrix4x4 = [
+        matrix3x3[0], matrix3x3[1], matrix3x3[2], 0,
+        matrix3x3[3], matrix3x3[4], matrix3x3[5], 0,
+        matrix3x3[6], matrix3x3[7], matrix3x3[8], 0,
+        0, 0, 0, 1
+    ];
+
+    return matrix4x4;
+}
+
+// 축-각 회전 행렬 생성 함수
+function axisAngleRotationMatrix(axis, angle) {
+    let rad = angle * Math.PI / 180;
+    let cos = Math.cos(rad);
+    let sin = Math.sin(rad);
+    let [x, y, z] = axis;
+    let t = 1 - cos;
+
+    return [
+        t * x * x + cos,       t * x * y - z * sin,   t * x * z + y * sin,
+        t * x * y + z * sin,   t * y * y + cos,       t * y * z - x * sin,
+        t * x * z - y * sin,   t * y * z + x * sin,   t * z * z + cos
+    ];
+}
+
+// 카메라의 뷰 행렬을 업데이트하는 함수
+function updateViewMatrix() {
+    const eye = [positionMatrix[12], positionMatrix[13], positionMatrix[14]];
+    const target = [0, -1, 0]; // 여기서는 원점(0, 0, 0)을 바라보도록 설정
+    const up = [0, 0, -1]; // Y축을 위쪽 방향으로 설정
+
+    const zAxis = normalize(subtract(eye, target));
+    const xAxis = normalize(cross(up, zAxis));
+    const yAxis = cross(zAxis, xAxis);
+
+    // 뷰 행렬 계산
+    viewMatrix = [
+        xAxis[0], yAxis[0], zAxis[0], 0,
+        xAxis[1], yAxis[1], zAxis[1], 0,
+        xAxis[2], yAxis[2], zAxis[2], 0,
+        -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1
+    ];
+    return viewMatrix;
+}
+function createIdentityMatrix3x3() {
+    return {
+        value: [
+            1, 0, 0,
+            0, 1, 0,
+            0, 0, 1
+        ]
+    };
+}
+
+function getOrientation(p, q, r) {
+    let val = (q.z - p.z) * (r.x - q.x) - (q.x - p.x) * (r.z - q.z);
+    if (val === 0) return 0;  // collinear
+    return (val > 0) ? 1 : 2; // clock or counterclockwise
+}
+
+function distanceSquared(p, q) {
+    return (q.x - p.x) * (q.x - p.x) + (q.z - p.z) * (q.z - p.z);
+}
+
+function nextToTop(stack) {
+    let top = stack.pop();
+    let nextToTop = stack[stack.length - 1];
+    stack.push(top);
+    return nextToTop;
+}
+// 벡터 정규화 함수
+function normalize(v) {
+    let length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    return [v[0] / length, v[1] / length, v[2] / length];
+}
+
+function translate4(a, x, y, z) {
+    return [
+        ...a.slice(0, 12),
+        a[0] * x + a[4] * y + a[8] * z + a[12],
+        a[1] * x + a[5] * y + a[9] * z + a[13],
+        a[2] * x + a[6] * y + a[10] * z + a[14],
+        a[3] * x + a[7] * y + a[11] * z + a[15],
+    ];
+}
 function getProjectionMatrix(fx, fy, width, height) {
     const znear = 0.2;
     const zfar = 200;
@@ -66,15 +249,6 @@ function getViewMatrix(camera) {
     ].flat();
     return camToWorld;
 }
-// function translate4(a, x, y, z) {
-//     return [
-//         ...a.slice(0, 12),
-//         a[0] * x + a[4] * y + a[8] * z + a[12],
-//         a[1] * x + a[5] * y + a[9] * z + a[13],
-//         a[2] * x + a[6] * y + a[10] * z + a[14],
-//         a[3] * x + a[7] * y + a[11] * z + a[15],
-//     ];
-// }
 
 function multiply4(a, b) {
     return [
@@ -133,69 +307,177 @@ function invert4(a) {
     ];
 }
 
-function rotate4(a, rad, x, y, z) {
-    let len = Math.hypot(x, y, z);
-    x /= len;
-    y /= len;
-    z /= len;
-    let s = Math.sin(rad);
-    let c = Math.cos(rad);
-    let t = 1 - c;
-    let b00 = x * x * t + c;
-    let b01 = y * x * t + z * s;
-    let b02 = z * x * t - y * s;
-    let b10 = x * y * t - z * s;
-    let b11 = y * y * t + c;
-    let b12 = z * y * t + x * s;
-    let b20 = x * z * t + y * s;
-    let b21 = y * z * t - x * s;
-    let b22 = z * z * t + c;
+function rotate4(m, angle, x, y, z) {
+    // 각도를 라디안으로 변환
+    const rad = angle * Math.PI / 180;
+    const c = Math.cos(rad);
+    const s = Math.sin(rad);
+    const t = 1 - c;
+
+    // 축 벡터 정규화
+    const length = Math.sqrt(x * x + y * y + z * z);
+    x /= length;
+    y /= length;
+    z /= length;
+
+    // 회전 행렬 생성
+    const r = [
+        t * x * x + c, t * x * y - s * z, t * x * z + s * y, 0,
+        t * x * y + s * z, t * y * y + c, t * y * z - s * x, 0,
+        t * x * z - s * y, t * y * z + s * x, t * z * z + c, 0,
+        0, 0, 0, 1
+    ];
+
+    // 행렬 곱셈: r * m
     return [
-        a[0] * b00 + a[4] * b01 + a[8] * b02,
-        a[1] * b00 + a[5] * b01 + a[9] * b02,
-        a[2] * b00 + a[6] * b01 + a[10] * b02,
-        a[3] * b00 + a[7] * b01 + a[11] * b02,
-        a[0] * b10 + a[4] * b11 + a[8] * b12,
-        a[1] * b10 + a[5] * b11 + a[9] * b12,
-        a[2] * b10 + a[6] * b11 + a[10] * b12,
-        a[3] * b10 + a[7] * b11 + a[11] * b12,
-        a[0] * b20 + a[4] * b21 + a[8] * b22,
-        a[1] * b20 + a[5] * b21 + a[9] * b22,
-        a[2] * b20 + a[6] * b21 + a[10] * b22,
-        a[3] * b20 + a[7] * b21 + a[11] * b22,
-        ...a.slice(12, 16),
+        r[0] * m[0] + r[1] * m[4] + r[2] * m[8] + r[3] * m[12],
+        r[0] * m[1] + r[1] * m[5] + r[2] * m[9] + r[3] * m[13],
+        r[0] * m[2] + r[1] * m[6] + r[2] * m[10] + r[3] * m[14],
+        r[0] * m[3] + r[1] * m[7] + r[2] * m[11] + r[3] * m[15],
+
+        r[4] * m[0] + r[5] * m[4] + r[6] * m[8] + r[7] * m[12],
+        r[4] * m[1] + r[5] * m[5] + r[6] * m[9] + r[7] * m[13],
+        r[4] * m[2] + r[5] * m[6] + r[6] * m[10] + r[7] * m[14],
+        r[4] * m[3] + r[5] * m[7] + r[6] * m[11] + r[7] * m[15],
+
+        r[8] * m[0] + r[9] * m[4] + r[10] * m[8] + r[11] * m[12],
+        r[8] * m[1] + r[9] * m[5] + r[10] * m[9] + r[11] * m[13],
+        r[8] * m[2] + r[9] * m[6] + r[10] * m[10] + r[11] * m[14],
+        r[8] * m[3] + r[9] * m[7] + r[10] * m[11] + r[11] * m[15],
+
+        r[12] * m[0] + r[13] * m[4] + r[14] * m[8] + r[15] * m[12],
+        r[12] * m[1] + r[13] * m[5] + r[14] * m[9] + r[15] * m[13],
+        r[12] * m[2] + r[13] * m[6] + r[14] * m[10] + r[15] * m[14],
+        r[12] * m[3] + r[13] * m[7] + r[14] * m[11] + r[15] * m[15]
     ];
 }
+//시작함수, clusterdata fetch
+document.addEventListener('DOMContentLoaded', (event) => {
+    const errorMessageElement = document.getElementById('error-message');
 
-function translate4_orbit(a, x, y, z) {
-    return [
-        ...a.slice(0, 12),
-        a[0] * x + a[4] * y + a[8] * z + a[12],
-        a[1] * x + a[5] * y + a[9] * z + a[13],
-        a[2] * x + a[6] * y + a[10] * z + a[14],
-        a[3] * x + a[7] * y + a[11] * z + a[15],
-    ];
+    function fetchAndProcessImageText(callback) {
+        fetch('https://huggingface.co/spatialai/SplatViewer/resolve/main/DWcluster_data.txt')
+            .then(response => {
+                if (!response.ok) {
+                    dataCheck = false;
+                    throw new Error(`Cluster 파일이 없거나, 네트워크 오류입니다. 원점에서 움직일 수 없습니다.`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                const lines = text.trim().split('\n');
+
+    
+                for (let i = 0; i < lines.length; i++) {
+                    const parts = lines[i].trim().split(/\s+/); // 공백 또는 여러 개의 공백 문자를 구분자로 사용
+    
+                    const x = parseFloat(parts[0]);
+                    const y = parseFloat(parts[2]); //모델좌표가 달라 다르게 fetch
+                    const z = parseFloat(parts[1]);
+    
+                    // 직접 정의한 Vector3를 사용하여 벡터 생성
+                    const vertex = new Vector3(x, y*-1, z);
+                    //console.log(vertex);
+                    // 새로운 Vector3 생성하여 리스트에 추가
+                    polygonVertices.push(vertex);
+                    //console.log(polygonVertices);
+    
+                }
+                if (typeof callback === 'function') {
+                    callback(polygonVertices);
+                } else {
+                    console.error('콜백 함수가 올바르지 않습니다.');
+                }
+            })
+            .catch(error => {
+                console.error('파일을 가져오는 도중 오류가 발생했습니다:', error);
+                errorMessageElement.textContent = error.message;
+                errorMessageElement.style.display = 'block'; // 오류 메시지를 표시
+
+
+            });
+    }
+    fetchAndProcessImageText(polygonVertices => {
+        console.log('파싱된 데이터:', polygonVertices);
+
+        convexHull = ComputeConvexHull(polygonVertices);
+        console.log('계산된 볼록 껍질:', convexHull);
+        polygonVertices.length = 0; // 배열 비우기
+        polygonVertices.push(...convexHull);
+
+        console.log('계산된 볼록 껍질 잘 넣었니?:', polygonVertices);
+
+        console.log('계산된 볼록 껍질의 길이:', polygonVertices.length);
+    });
+    
+
+});
+
+//cluster data들이 다각형 안에 있는지 확인
+function IsPointInsidePolygon(point) {
+    let vertexCount = polygonVertices.length;
+    let inside = false;
+
+    // 다각형 정점들의 y와 z 값을 교환 (좌표계가 다를 경우 교환)
+    const transformedVertices = polygonVertices.map(vertex => {
+        return new Vector3(vertex.x, vertex.y, vertex.z);
+    });
+
+    // 입력 점의 y와 z 값을 교환 (좌표계가 다를 경우 교환)
+    const transformedPoint = new Vector3(point.x, point.y, point.z);
+    
+    // 교차 여부 검사
+    for (let i = 0, j = vertexCount - 1; i < vertexCount; j = i++) {
+        let vertex1 = transformedVertices[i];
+        let vertex2 = transformedVertices[j];
+
+        // 교차점이 있는지 확인
+        if (((vertex1.z > transformedPoint.z) !== (vertex2.z > transformedPoint.z)) &&
+            (transformedPoint.x < (vertex2.x - vertex1.x) * (transformedPoint.z - vertex1.z) / (vertex2.z - vertex1.z) + vertex1.x)) {
+            inside = !inside;
+        }
+    }
+
+    return inside;
+}
+//ConvexHull 알고리즘 구현
+function ComputeConvexHull(points) {
+    if (points.length <= 1) return points;
+
+    // Y 축을 기준으로 가장 아래쪽에 있는 점을 찾음
+    let pivot = points.reduce((acc, point) => {
+        if (point.z < acc.z || (point.z === acc.z && point.x < acc.x)) {
+            return point;
+        }
+        return acc;
+    }, points[0]);
+
+    points = points.filter(point => point !== pivot);
+    console.log("시작점",pivot);
+    // 피벗 점을 기준으로 시계 방향 정렬
+    points.sort((a, b) => {
+        let angleA = Math.atan2(a.z - pivot.z, a.x - pivot.x);
+        let angleB = Math.atan2(b.z - pivot.z, b.x - pivot.x);
+        return angleA - angleB;
+    });
+    //console.log(points);
+    // 그레이엄 스캔 알고리즘을 이용한 볼록 껍질 계산
+    let hull = [];
+    hull.push(pivot);
+    hull.push(points[0]);
+
+    for (let i = 1; i < points.length; i++) {
+        let top = hull.pop();
+        while (hull.length > 0 && getOrientation(hull[hull.length - 1], top, points[i]) !== 2) {
+            top = hull.pop();
+        }
+        hull.push(top);
+        hull.push(points[i]);
+    }
+
+    return hull;
 }
 
-// 4x4 행렬 변환 함수
-function translate4(m, tx, ty, tz) {
-    let result = m.slice(); // 원본 행렬 복사
-    result[12] += tx;
-    result[13] += ty;
-    result[14] += tz;
-    return result;
-}
-
-
-// 벡터 변환 함수
-function transformVector(matrix, vector) {
-    let x = vector[0], y = vector[1], z = vector[2];
-    return [
-        matrix[0] * x + matrix[4] * y + matrix[8] * z,
-        matrix[1] * x + matrix[5] * y + matrix[9] * z,
-        matrix[2] * x + matrix[6] * y + matrix[10] * z
-    ];
-}
 
 function createWorker(self) {
     let buffer;
@@ -571,7 +853,6 @@ out vec4 vColor;
 out vec2 vPosition;
 
 void main () {
-
     uvec4 cen = texelFetch(u_texture, ivec2((uint(index) & 0x3ffu) << 1, uint(index) >> 10), 0);
     vec4 cam = view * vec4(uintBitsToFloat(cen.xyz), 1);
     vec4 pos2d = projection * cam;
@@ -619,7 +900,6 @@ void main () {
 const fragmentShaderSource = `
 #version 300 es
 precision highp float;
-//precision mediump float;
 
 in vec4 vColor;
 in vec2 vPosition;
@@ -627,7 +907,6 @@ in vec2 vPosition;
 out vec4 fragColor;
 
 void main () {
-    //gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // 예시로 흰색으로 설정
     float A = -dot(vPosition, vPosition);
     if (A < -4.0) discard;
     float B = exp(A) * vColor.a;
@@ -636,23 +915,24 @@ void main () {
 
 `.trim();
 
-let defaultViewMatrix = [
-    1, 0, 0, 0, 
-    0, 0, 1, 0, 
-    0, -1, 0, 0, 
-    0, 0, 0, 1,
-];
-
-
-let viewMatrix = defaultViewMatrix;
-async function main() { 
-    let carousel = false;
+let currentUrl = "splat_khtest.splat";
+// loadSplat 함수 추가
+async function loadSplat(url) {
+    currentUrl = url;
+    await main();
+}
+async function main() {
     const params = new URLSearchParams(location.search);
-    
     try {
         viewMatrix = JSON.parse(decodeURIComponent(location.hash.slice(1)));
         carousel = false;
     } catch (err) {}
+    // const url = new URL(
+    //     // "nike.splat",
+    //     // location.href,
+    //     params.get("url") || "splat_khtest.splat",
+    //     "https://huggingface.co/spatialai/SplatViewer/resolve/main/"
+    // );
     const url = new URL(
         currentUrl,
         "https://huggingface.co/spatialai/SplatViewer/resolve/main/"
@@ -822,42 +1102,47 @@ async function main() {
             vertexCount = e.data.vertexCount;
         }
     };
+    
+    function extractRotationMatrix(viewMatrix) {
+        // Ensure the input matrix is a 4x4 matrix
+        if (viewMatrix.length !== 16) {
+            throw new Error("Input matrix must be a 4x4 matrix.");
+        }
+    
+        // Extract the 3x3 rotation matrix
+        return [
+            viewMatrix[0], viewMatrix[1], viewMatrix[2],
+            viewMatrix[4], viewMatrix[5], viewMatrix[6],
+            viewMatrix[8], viewMatrix[9], viewMatrix[10]
+        ];
+    }
+    function updateViewMatrixWithRotation(viewMatrix, newRotationMatrix) { //viewmatrix의 rotationmatrix 교체
+        if (viewMatrix.length !== 16 || newRotationMatrix.length !== 9) {
+            throw new Error("Invalid matrix dimensions.");
+        }
+    
+        // Create a copy of the original view matrix
+        const updatedViewMatrix = [...viewMatrix];
+    
+        // Update the rotation part of the view matrix
+        updatedViewMatrix[0] = newRotationMatrix[0]; // m00
+        updatedViewMatrix[1] = newRotationMatrix[1]; // m01
+        updatedViewMatrix[2] = newRotationMatrix[2]; // m02
+    
+        updatedViewMatrix[4] = newRotationMatrix[3]; // m10
+        updatedViewMatrix[5] = newRotationMatrix[4]; // m11
+        updatedViewMatrix[6] = newRotationMatrix[5]; // m12
+    
+        updatedViewMatrix[8] = newRotationMatrix[6]; // m20
+        updatedViewMatrix[9] = newRotationMatrix[7]; // m21
+        updatedViewMatrix[10] = newRotationMatrix[8]; // m22
+        // Translation and perspective components remain unchanged
+        return updatedViewMatrix;
+    }
 
     let activeKeys = [];
 	let currentCameraIndex = 0;
 
-    window.addEventListener("keydown", (e) => {
-        // if (document.activeElement != document.body) return;
-        carousel = false;
-        if (!activeKeys.includes(e.code)) activeKeys.push(e.code);
-        if (/\d/.test(e.key)) {
-            currentCameraIndex = parseInt(e.key)
-            camera = cameras[currentCameraIndex];
-            viewMatrix = defaultViewMatrix;
-            
-            //viewMatrix = getViewMatrix(camera);
-        }
-		if (['-', '_'].includes(e.key)){
-			currentCameraIndex = (currentCameraIndex + cameras.length - 1) % cameras.length;
-			viewMatrix = getViewMatrix(cameras[currentCameraIndex]);
-		}
-		if (['+', '='].includes(e.key)){
-			currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-			viewMatrix = getViewMatrix(cameras[currentCameraIndex]);
-		}
-        camid.innerText = "cam  " + currentCameraIndex;
-        if (e.code == "KeyV") {
-            location.hash =
-                "#" +
-                JSON.stringify(
-                    viewMatrix.map((k) => Math.round(k * 100) / 100),
-                );
-                camid.innerText =""
-        } else if (e.code === "KeyP") {
-            // carousel = true;
-            // camid.innerText =""
-        }
-    });
     window.addEventListener("keyup", (e) => {
         activeKeys = activeKeys.filter((k) => k !== e.code);
     });
@@ -865,111 +1150,167 @@ async function main() {
         activeKeys = [];
     });
 
-   
-    let startX, startY, down = false;
-    const sensitivity = 0.001; // 마우스 감도
-    let accumulatedRotationX = 0; // 누적된 X축 회전 값
-    let accumulatedRotationY = 0; // 누적된 Y축 회전 값
-    let accumulatedRotationZ = 0; // 누적된 Z축 회전 값
+    // window.addEventListener(
+    //     "wheel",
+    //     (e) => {
+    //         carousel = false;
+    //         e.preventDefault();
+    //         const lineHeight = 10;
+    //         const scale =
+    //             e.deltaMode == 1
+    //                 ? lineHeight
+    //                 : e.deltaMode == 2
+    //                 ? innerHeight
+    //                 : 1;
+    //         let inv = invert4(viewMatrix);
+    //         if (e.shiftKey) {
+    //             inv = translate4(
+    //                 inv,
+    //                 (e.deltaX * scale) / innerWidth,
+    //                 (e.deltaY * scale) / innerHeight,
+    //                 0,
+    //             );
+    //         } else if (e.ctrlKey || e.metaKey) {
+    //             // inv = rotate4(inv,  (e.deltaX * scale) / innerWidth,  0, 0, 1);
+    //             // inv = translate4(inv,  0, (e.deltaY * scale) / innerHeight, 0);
+    //             // let preY = inv[13];
+    //             inv = translate4(
+    //                 inv,
+    //                 0,
+    //                 0,
+    //                 (-10 * (e.deltaY * scale)) / innerHeight,
+    //             );
+    //             // inv[13] = preY;
+    //         } else {
+    //             let d = 4;
+    //             inv = translate4(inv, 0, 0, d);
+    //             inv = rotate4(inv, -(e.deltaX * scale) / innerWidth, 0, 1, 0);
+    //             inv = rotate4(inv, (e.deltaY * scale) / innerHeight, 1, 0, 0);
+    //             inv = translate4(inv, 0, 0, -d);
+    //         }
 
-    // 초기 상태의 viewMatrix와 분리된 행렬들
-    let positionMatrix = [
-        1, 0, 0, 0, 
-        0, 0, 1, 0, 
-        0, -1, 0, 0, 
-        0, 0, 0, 1
-    ]; // 초기 위치 행렬
-    
-    let rotationMatrix = [
-        1, 0, 0, 0, 
-        0, 1, 0, 0, 
-        0, 0, 1, 0, 
-        0, 0, 0, 1
-    ]; // 초기 회전 행렬
+    //         viewMatrix = invert4(inv);
+    //     },
+    //     { passive: false },
+    // );
 
+    let startX, startY, down;
     canvas.addEventListener("mousedown", (e) => {
+        carousel = false;
         e.preventDefault();
         startX = e.clientX;
         startY = e.clientY;
-        down = true;
-        console.log("Vertex Count", vertexCount);
-
+        down = e.ctrlKey || e.metaKey ? 2 : 1;
+    });
+    canvas.addEventListener("contextmenu", (e) => {
+        carousel = false;
+        e.preventDefault();
+        startX = e.clientX;
+        startY = e.clientY;
+        down = 2;
     });
     
+    const sensitivity = 0.1; // 마우스 감도
+    let accumulatedRotationX = 0; // 누적된 X축 회전 값
+    let accumulatedRotationY = 0; // 누적된 Y축 회전 값
+
+    //default rotationMatrix
+    let rotationMatrix = {value: [
+        1,0,0,
+        0,1,0,
+        0,0,1
+    ]};
+    //초기 틀어짐 방지
+    let init_rotationMatrix = {value: [
+        1,0,0,
+        0,0,-1,
+        0,1,0
+    ]};
+    //space bar 틀어짐 방지
+    let viewpoint_rotationMatrix = {value: [
+        1,0,0,
+        0,1,0,
+        0,0,1
+    ]};
+    //orbit touch 틀어짐 방지
+    let orbit_rotationMatrix = {value: [
+        1,0,0,
+        0,1,0,
+        0,0,1
+    ]};
+    const maxRotationX = 10;
+    const minRotationX = -10;
     canvas.addEventListener("mousemove", (e) => {
+        // rotation part만 update
         if (!down) return;
-    
         e.preventDefault();
-    
+        let inv = invert4(viewMatrix);
         let dx = sensitivity * (e.clientX - startX);
         let dy = sensitivity * (e.clientY - startY);
     
         accumulatedRotationY += dx; // Y축 회전 값 누적 (왼쪽으로 이동하면 증가)
-        accumulatedRotationX -= dy; // X축 회전 값 누적 (위로 이동하면 증가)
+        accumulatedRotationX += dy; // X축 회전 값 누적 (위로 이동하면 증가)
         
+        accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
+
+
         // 회전 행렬 생성
         let rotationX = axisAngleRotationMatrix([1, 0, 0], accumulatedRotationX); // X축 회전
-        let rotationY = axisAngleRotationMatrix([0, 1, 0], accumulatedRotationY); // Y축 회전
-    
-        // 회전 행렬을 결합하여 최종 rotationMatrix 생성
-        rotationMatrix = multiplyMatrices(rotationY, rotationX);
-    
-        // 시작점 업데이트
+        let rotationY = axisAngleRotationMatrix([0, 1, 0], -accumulatedRotationY); // Y축 회전
+
+        rotationMatrix.value = multiply3x3Matrices(rotationX, rotationY);
+
+
+        if(spaceStart){ //spacebar 한번 눌리면 나갈 수 없다.
+
+            if(!spaceStartinit){
+                spaceStartinit = true;
+                accumulatedRotationY = 0; // Y축 회전 값 초기화
+                accumulatedRotationX = 0; // X축 회전 값 초기화
+                rotationMatrix = createIdentityMatrix3x3(); //기존 rotationMatrix 초기화
+            }
+            //초기 틀어짐 방지
+            rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, orbit_rotationMatrix.value);            
+            
+        }else{ //spacebar눌러서 viewpoint 받기 전
+            rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, init_rotationMatrix.value);
+        }
+        
+        //Update
+        inv = updateViewMatrixWithRotation(inv, rotationMatrix.value);
+
+
+
+        viewMatrix = invert4(inv);
         startX = e.clientX;
         startY = e.clientY;
+        // 참고용 원본
+        // if (!down) return;
+        // e.preventDefault();
+
+        
+        // let inv = invert4(viewMatrix);
+        // let dx = (50 * (e.clientX - startX)) / innerWidth;
+        // let dy = (50 * (e.clientY - startY)) / innerHeight;
+
+
+        // inv = rotate4(inv, dx, 0, -1, 0);
+        // inv = rotate4(inv, -dy, -1, 0, 0);
+        // viewMatrix = invert4(inv);
+        // //console.log(viewMatrix);
+
+        // startX = e.clientX;
+        // startY = e.clientY;
     });
-    
     canvas.addEventListener("mouseup", (e) => {
         e.preventDefault();
         down = false;
+        // startX = 0;
+        // startY = 0;
     });
-    
     canvas.addEventListener("mouseout", (e) => {
         down = false;
     });
-    //Q
-    document.addEventListener("keydown", (e) => {
-        if (e.code === "KeyQ") {
-            accumulatedRotationZ += sensitivity; 
-            let rotationZ = axisAngleRotationMatrix([0, 0, 1], accumulatedRotationZ);
-            rotationMatrix = multiplyMatrices(rotationZ, rotationMatrix); 
-        }
-    });
-    //E 
-    document.addEventListener("keydown", (e) => {
-        if (e.code === "KeyE") {
-            accumulatedRotationZ += sensitivity; 
-            let rotationZ = axisAngleRotationMatrix([0, 0, 1], -accumulatedRotationZ); 
-            rotationMatrix = multiplyMatrices(rotationZ, rotationMatrix); 
-        }
-    });
-    // 4x4 행렬 곱셈 함수
-    function multiplyMatrices(a, b) {
-        let result = new Array(16).fill(0);
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                for (let k = 0; k < 4; k++) {
-                    result[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
-                }
-            }
-        }
-        return result;
-    }
-    
-    // 축-각 회전 행렬 생성 함수
-    function axisAngleRotationMatrix(axis, angle) {
-        let [x, y, z] = axis;
-        let c = Math.cos(angle);
-        let s = Math.sin(angle);
-        let t = 1 - c;
-    
-        return [
-            t * x * x + c, t * x * y - s * z, t * x * z + s * y, 0,
-            t * x * y + s * z, t * y * y + c, t * y * z - s * x, 0,
-            t * x * z - s * y, t * y * z + s * x, t * z * z + c, 0,
-            0, 0, 0, 1
-        ];
-    }
 
     //touch orbit
     canvas.addEventListener(
@@ -985,28 +1326,34 @@ async function main() {
         },
         { passive: false },
     );
+    let orbitCheck = false;
+    let orbitCheckinit = false;
+
     canvas.addEventListener(
         "touchmove",
         (e) => {
             e.preventDefault();
+            orbitCheck = true;
             if (e.touches.length === 1 && down) {
-                let inv = invert4(rotationMatrix);
-                let dx = (4 * (e.touches[0].clientX - startX)) / innerWidth;
+                let inv = invert4(viewMatrix);
+                let dx = (8 * (e.touches[0].clientX - startX)) / innerWidth;
+
+                //x축 회전은 없앰.
                 //let dy = (4 * (e.touches[0].clientY - startY)) / innerHeight;
 
                 //orbit 반경 (0:fps)
                 let d = 0.3;
-                inv = translate4_orbit(inv, 0, 0, d);
-                // inv = translate4(inv,  -x, -y, -z);
-                // inv = translate4(inv,  x, y, z);
+                inv = translate4(inv, 0, 0, d);
                 inv = rotate4(inv, dx, 0, 1, 0);
-                // inv = rotate4(inv, -dy, 1, 0, 0);
-                inv = translate4_orbit(inv, 0, 0, -d);
+                inv = translate4(inv, 0, 0, -d);
 
-                rotationMatrix = invert4(inv);
+                orbit_rotationMatrix.value = extractRotationMatrix(inv);
+
+                viewMatrix = invert4(inv);
 
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
+
             } 
         },
         { passive: false },
@@ -1021,7 +1368,6 @@ async function main() {
         },
         { passive: false },
     );
-
     //joystickfunc();
     //조이스틱 구현 부분
     const joystickMovement = document.getElementById('joystick-movement');
@@ -1072,7 +1418,6 @@ async function main() {
             resetJoystickMovement();
         }
     });
-
     function moveJoystickMovement(clientX, clientY) {
         const rect = containerMovement.getBoundingClientRect();
         const x = clientX - rect.left - rect.width / 2;
@@ -1095,45 +1440,29 @@ async function main() {
     }
 
     function updateViewMatrix(joystickX, joystickY) {
-        // Normalize joystick inputs
+        let inv = invert4(viewMatrix);
+        let tempInv = inv;
         const normalize = (value, max) => value / max;
         const normalizedX = normalize(joystickX, containerMovement.clientWidth / 2);
         const normalizedY = normalize(joystickY, containerMovement.clientHeight / 2);
+        console.log(normalizedY);
+        tempInv = translate4(tempInv, 0.01 * normalizedX, 0, 0); 
+        tempInv = translate4(tempInv, 0, 0, -0.01 * normalizedY); 
 
-        const moveSpeed = 0.01;
-
-        // Calculate movement vectors
-        let rightVector = [rotationMatrix[0], rotationMatrix[1], rotationMatrix[2]];
-        let forwardVector = [rotationMatrix[8], rotationMatrix[9], rotationMatrix[10]];
-
-        // Normalize vectors
-        const normalizeVector = (v) => {
-            let length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-            return [v[0] / length, v[1] / length, v[2] / length];
-        };
-
-        rightVector = normalizeVector(rightVector);
-        forwardVector = normalizeVector(forwardVector);
-
-        let movement = [0, 0, 0];
-
-        // Apply joystick movement for forward/backward movement
-        movement[0] -= forwardVector[0] * normalizedY * moveSpeed;
-        //movement[1] -= forwardVector[1] * normalizedY * moveSpeed;
-        movement[2] += forwardVector[2] * normalizedY * moveSpeed;
-
-        // Apply joystick movement for right/left movement
-        movement[0] -= rightVector[0] * normalizedX * moveSpeed;
-        //movement[1] -= rightVector[1] * normalizedX * moveSpeed;
-        movement[2] += rightVector[2] * normalizedX * moveSpeed;
-
-        // 계산된 이동을 positionMatrix에 적용
-        positionMatrix = translate4(positionMatrix, movement[0], movement[1], movement[2]);
-
-        // 이동된 positionMatrix와 회전된 rotationMatrix를 결합하여 viewMatrix 갱신
-        viewMatrix = multiplyMatrices(positionMatrix, rotationMatrix);
-
-        console.log('View Matrix:', viewMatrix); // For debugging purposes
+        const tx = tempInv[12];
+        const ty = tempInv[14];
+        const tz = tempInv[13];
+        const tempPositionVector = new Vector3(tx, ty, tz);
+        
+        // Check for collision
+        if (IsPointInsidePolygon(tempPositionVector)) {
+            // If no collision, update the inverse matrix
+            inv = tempInv;          
+            viewMatrix = invert4(inv);
+            console.log();
+        } else {
+            console.log('Collision detected, movement blocked.');
+        }
     }
     //지속적인 움직임을 위한 함수
     function handleContinuousMovement() {
@@ -1164,30 +1493,47 @@ async function main() {
         }
     });
 
-    const maxRotationX = 10 * (Math.PI / 180); // 30도 라디안 상하 회전 제한
-    const minRotationX = -10 * (Math.PI / 180); // -30도 라디안 상하 회전 제한
-
+    let touchRotSensitivity = 10;
     containerRotation.addEventListener('touchmove', (event) => {
         if (touchIdRotation !== null) {
             const touch = Array.from(event.changedTouches).find(t => t.identifier === touchIdRotation);
             if (touch) {
+                let inv = invert4(viewMatrix);
+
                 const dx = (touch.clientX - startXRotation) / containerRotation.clientWidth;
                 const dy = (touch.clientY - startYRotation) / containerRotation.clientHeight;
+
+                accumulatedRotationY += dx * touchRotSensitivity; 
+                accumulatedRotationX += dy * touchRotSensitivity; 
                 
-                const rotateSpeed = 0.5;
-
-                accumulatedRotationY += dx * rotateSpeed; // Y축 회전 값 누적 (왼쪽으로 이동하면 증가)
-                accumulatedRotationX -= dy * rotateSpeed; // X축 회전 값 누적 (위로 이동하면 증가)
-
-                // X축 회전 값 제한
-                accumulatedRotationX = Math.max(minRotationX, Math.min(maxRotationX, accumulatedRotationX));
+                accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
 
                 // 회전 행렬 생성
                 let rotationX = axisAngleRotationMatrix([1, 0, 0], accumulatedRotationX); // X축 회전
-                let rotationY = axisAngleRotationMatrix([0, 1, 0], accumulatedRotationY); // Y축 회전
-                rotationMatrix = multiplyMatrices(rotationY, rotationX);
+                let rotationY = axisAngleRotationMatrix([0, 1, 0], -accumulatedRotationY); // Y축 회전
+        
+                rotationMatrix.value = multiply3x3Matrices(rotationX, rotationY);  
+        
+                if(orbitCheck){
+                    if(!orbitCheckinit){
+                        orbitCheckinit = true;
+                        accumulatedRotationY = 0; // Y축 회전 값 초기화
+                        accumulatedRotationX = 0; // X축 회전 값 초기화
+                        rotationMatrix = createIdentityMatrix3x3(); //기존 rotationMatrix 초기화
+                    }
+                    //초기 틀어짐 방지
+                    rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, orbit_rotationMatrix.value);  
+                    console.log(rotationMatrix.value);
 
-                //rotateViewMatrix(dx);
+
+                }else{ //orbit 전
+                    rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, init_rotationMatrix.value);
+                }
+
+                //Update
+                inv = updateViewMatrixWithRotation(inv, rotationMatrix.value);
+        
+                viewMatrix = invert4(inv);
                 moveJoystickMovement2(touch.clientX, touch.clientY);
                 startXRotation = touch.clientX;
                 startYRotation = touch.clientY;
@@ -1202,37 +1548,6 @@ async function main() {
             resetJoystick()
         }
     });
-
-    
-
-    function rotateY(matrix, angle) {
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-
-        const rotationMatrix = [
-            cos, 0, sin, 0,
-            0, 1, 0, 0,
-            -sin, 0, cos, 0,
-            0, 0, 0, 1
-        ];
-
-        return multiplyMatrices(matrix, rotationMatrix);
-    }
-    function rotateX(matrix, angle) {
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-    
-        const rotationMatrix = [
-            1, 0, 0, 0,
-            0, cos, -sin, 0,
-            0, sin, cos, 0,
-            0, 0, 0, 1
-        ];
-    
-        return multiplyMatrices(matrix, rotationMatrix);
-    }
-
-    
     function resetJoystick() {
         joystickRotation.style.transform = `translate(-50%, -50%)`;
     }
@@ -1250,89 +1565,107 @@ async function main() {
         joystickRotation.style.transform = `translate(${joystickX - 50}%, ${joystickY - 50}%)`;
     }
     //조이스틱 구현 끝
-    
-    let jumpDelta = 0;
+        
     let vertexCount = 0;
 
     let lastFrame = 0;
     let avgFps = 0;
-    let start = 0;
+
+    //spacebar 연속 눌림 방지
+    let spacePressed = false;
+    //spacebar Start --> Mouse Rotation
+    let spaceStart = false;
+    //spacebar Start --> Rotation 값 초기화
+    let spaceStartinit = false;
+
+    let currentVertexIndex = 0;
+
 
     const frame = (now) => {
-        
-         // rotationMatrix에서 방향 벡터를 계산합니다.
-        let rightVector = [rotationMatrix[0], rotationMatrix[1], rotationMatrix[2]];
-        let upVector = [rotationMatrix[1], rotationMatrix[5], rotationMatrix[9]];
-        let forwardVector = [rotationMatrix[2], rotationMatrix[6], rotationMatrix[10]];
-
-        
-        // 벡터 정규화 함수
-        const normalize = (v) => {
-            let length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-            return [v[0] / length, v[1] / length, v[2] / length];
-        };
-
-        // 벡터들을 정규화합니다
-        rightVector = normalize(rightVector);
-        upVector = normalize(upVector);
-        forwardVector = normalize(forwardVector);
-        
-        const moveSpeed = 0.01;
-
-        let movement = [0, 0, 0];
+      
+        let inv = invert4(viewMatrix);
+        let tempInv = inv;
 
         if (activeKeys.includes("KeyW")) {
-            movement[0] -= forwardVector[0] * moveSpeed;
-            //movement[1] -= forwardVector[1] * moveSpeed;
-            movement[2] -= forwardVector[2] * moveSpeed;
-            
+            tempInv = translate4(tempInv, 0, 0, 0.01);
         }
         if (activeKeys.includes("KeyS")) {
-            movement[0] += forwardVector[0] * moveSpeed;
-            //movement[1] += forwardVector[1] * moveSpeed;
-            movement[2] += forwardVector[2] * moveSpeed;
+            tempInv = translate4(tempInv, 0, 0, -0.01);
         }
-        if (activeKeys.includes("KeyD")) {
-            movement[0] -= rightVector[0] * moveSpeed;
-            //movement[1] -= rightVector[1] * moveSpeed;
-            movement[2] += rightVector[2] * moveSpeed;
+        if (activeKeys.includes("KeyA")){
+            tempInv = translate4(tempInv, -0.01, 0, 0);
         }
-        if (activeKeys.includes("KeyA")) {
-            movement[0] += rightVector[0] * moveSpeed;
-            //movement[1] += rightVector[1] * moveSpeed;
-            movement[2] -= rightVector[2] * moveSpeed;
+        if (activeKeys.includes("KeyD")){
+            tempInv = translate4(tempInv, 0.01, 0, 0);
         }
-	    
-        // 계산된 이동을 positionMatrix에 적용
-        positionMatrix = translate4(positionMatrix, movement[0], movement[1], movement[2]);
-
-        // 이동된 positionMatrix와 회전된 rotationMatrix를 결합하여 viewMatrix 갱신
-        viewMatrix = multiplyMatrices(positionMatrix, rotationMatrix);
-
+        if (activeKeys.includes("KeyQ")) tempInv = rotate4(tempInv, 0.1, 0, 0, 1);
+        if (activeKeys.includes("KeyE")) tempInv = rotate4(tempInv, -0.01, 0, 0, 1);
         
+        const tx = tempInv[12];
+        const ty = tempInv[14];
+        const tz = tempInv[13];
+        const tempPositionVector = new Vector3(tx, ty, tz);
 
-        let inv = invert4(viewMatrix);
+        // Check for collision
+        if (IsPointInsidePolygon(tempPositionVector)) {
+            // If no collision, update the inverse matrix
+            inv = tempInv;          
+            viewMatrix = invert4(inv);
+        } else {
+            console.log('Collision detected, movement blocked.');
+        }
 
+        if (spacePressed && dataCheck) {
+            spaceStart = true;
+            spaceStartinit = false;
+            // 스페이스바를 누를 때마다 현재 인덱스를 증가시키고 배열의 길이로 모듈로 연산을 수행하여 루프를 만듦
+            currentVertexIndex = (currentVertexIndex + 1) % polygonVertices.length;
+            // 새로운 카메라 위치를 설정
+            positionMatrix = translate4(
+                positionMatrix,
+                polygonVertices[currentVertexIndex].x - positionMatrix[12],
+                polygonVertices[currentVertexIndex].y - positionMatrix[14],
+                polygonVertices[currentVertexIndex].z - positionMatrix[13]
+            );
+            positionMatrix[14] = 0;
+    
+            console.log(currentVertexIndex, 
+                positionMatrix[12],
+                positionMatrix[14],
+                positionMatrix[13]
+            );
+            // 카메라의 뷰 행렬을 업데이트
+            inv = invert4(updateViewMatrix());
+            viewpoint_rotationMatrix.value = extractRotationMatrix(inv);
+            // 스페이스바 동작을 한 번만 수행하도록 설정
+            spacePressed = false;
+        }
+
+        // 키 누름 이벤트 핸들러
+        window.addEventListener('keydown', (event) => {
+            if (!activeKeys.includes(event.code)) {
+                activeKeys.push(event.code);
+            }
+            if (event.code === "Space" && !spacePressed) {
+                spacePressed = true;
+            }
+        });
+
+        // 키 놓음 이벤트 핸들러
+        window.addEventListener('keyup', (event) => {
+            const index = activeKeys.indexOf(event.code);
+            if (index > -1) {
+                activeKeys.splice(index, 1);
+            }
+        });
+        inv[14] = 0.01; // 14번째 요소 (0부터 시작) = Y축의 위치 고정
 
         viewMatrix = invert4(inv);
-
-        if (carousel) {
-            let inv = invert4(defaultViewMatrix);
-
-            const t = Math.sin((Date.now() - start) / 5000);
-            inv = translate4(inv, 2.5 * t, 0, 6 * (1 - Math.cos(t)));
-            inv = rotate4(inv, -0.6 * t, 0, 1, 0);
-
-            viewMatrix = invert4(inv);
-        }
-
        
-
         let inv2 = invert4(viewMatrix);
-        inv2 = translate4(inv2, 0, -jumpDelta, 0);
-        inv2 = rotate4(inv2, -0.1 * jumpDelta, 1, 0, 0);
+
         let actualViewMatrix = invert4(inv2);
-            
+
         const viewProj = multiply4(projectionMatrix, actualViewMatrix);
         worker.postMessage({ view: viewProj });
 
@@ -1362,12 +1695,6 @@ async function main() {
         lastFrame = now;
         requestAnimationFrame(frame);
     };
-        // 예시로 키보드 이벤트 처리
-    
-    // 초기 상태 설정
-    let viewMatrix = multiplyMatrices(positionMatrix, rotationMatrix);
-    //requestAnimationFrame(frame);
-    //requestAnimationFrame(frame);
 
     frame();
 
@@ -1458,8 +1785,8 @@ async function main() {
             vertexCount: Math.floor(bytesRead / rowLength),
         });
 }
-// main 함수 호출 부분 수정
-loadSplat(currentUrl).catch((err) => {
+
+main().catch((err) => {
     document.getElementById("spinner").style.display = "none";
     document.getElementById("message").innerText = err.toString();
 });
