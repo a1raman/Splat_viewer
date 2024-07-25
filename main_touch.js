@@ -1615,7 +1615,9 @@ async function main() {
         }
 
 
-        if (spacePressed && noDataCheck) {
+
+        if (spacePressed && !noDataCheck) {
+
             spaceStart = true;
             spaceStartinit = false;
             // 스페이스바를 누를 때마다 현재 인덱스를 증가시키고 배열의 길이로 모듈로 연산을 수행하여 루프를 만듦
