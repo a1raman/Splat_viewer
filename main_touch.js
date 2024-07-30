@@ -1410,7 +1410,7 @@ async function main() {
                 tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
 
                 // let preY = inv[13];
-                tempInv = translate4(tempInv, 0, 0, 3 * (1 - dscale));
+                tempInv = translate4(tempInv, 0, 0, 1.5 * (1 - dscale));
                 // inv[13] = preY;
 
                 const tx = tempInv[12];
@@ -1447,116 +1447,116 @@ async function main() {
     );
     //joystickfunc();
     //조이스틱 구현 부분
-    
-    const joystickRotation = document.getElementById('joystick-rotation');
-    const containerRotation = document.getElementById('joystick-container-rotation');
+    //없애달라 - 사업부서 의견
+    // const joystickRotation = document.getElementById('joystick-rotation');
+    // const containerRotation = document.getElementById('joystick-container-rotation');
 
-    let touchIdRotation = null;
-    let startXRotation = 0;
-    let startYRotation = 0;
+    // let touchIdRotation = null;
+    // let startXRotation = 0;
+    // let startYRotation = 0;
 
-    containerRotation.addEventListener('touchstart', (event) => {
-        if (touchIdRotation === null) {
-            const touch = event.changedTouches[0];
-            touchIdRotation = touch.identifier;
-            startXRotation = touch.clientX;
-            startYRotation = touch.clientY;
+    // containerRotation.addEventListener('touchstart', (event) => {
+    //     if (touchIdRotation === null) {
+    //         const touch = event.changedTouches[0];
+    //         touchIdRotation = touch.identifier;
+    //         startXRotation = touch.clientX;
+    //         startYRotation = touch.clientY;
 
-        }
-    });
+    //     }
+    // });
 
-    let touchRotSensitivity = 10;
-    containerRotation.addEventListener('touchmove', (event) => {
-        if (touchIdRotation !== null) {
-            const touch = Array.from(event.changedTouches).find(t => t.identifier === touchIdRotation);
-            if (touch) {
-                orbitCheck = true;
-                let inv = invert4(viewMatrix);
-                const dx = (touch.clientX - startXRotation) / containerRotation.clientWidth;
+    // let touchRotSensitivity = 10;
+    // containerRotation.addEventListener('touchmove', (event) => {
+    //     if (touchIdRotation !== null) {
+    //         const touch = Array.from(event.changedTouches).find(t => t.identifier === touchIdRotation);
+    //         if (touch) {
+    //             orbitCheck = true;
+    //             let inv = invert4(viewMatrix);
+    //             const dx = (touch.clientX - startXRotation) / containerRotation.clientWidth;
 
-                //x축 회전은 없앰.
-                //let dy = (4 * (e.touches[0].clientY - startY)) / innerHeight;
+    //             //x축 회전은 없앰.
+    //             //let dy = (4 * (e.touches[0].clientY - startY)) / innerHeight;
 
-                //orbit 반경 (0:fps)
-                let d = 0.3;
-                inv = translate4(inv, 0, 0, d);
-                inv = rotate4(inv, dx, 0, 1, 0);
-                inv = translate4(inv, 0, 0, -d);
+    //             //orbit 반경 (0:fps)
+    //             let d = 0.3;
+    //             inv = translate4(inv, 0, 0, d);
+    //             inv = rotate4(inv, dx, 0, 1, 0);
+    //             inv = translate4(inv, 0, 0, -d);
 
-                orbit_rotationMatrix.value = extractRotationMatrix(inv);
+    //             orbit_rotationMatrix.value = extractRotationMatrix(inv);
 
-                viewMatrix = invert4(inv);
-                moveJoystickMovement2(touch.clientX, touch.clientY);
-                startXRotation = touch.clientX;
-                startYRotation = touch.clientY;
+    //             viewMatrix = invert4(inv);
+    //             moveJoystickMovement2(touch.clientX, touch.clientY);
+    //             startXRotation = touch.clientX;
+    //             startYRotation = touch.clientY;
 
-                // let inv = invert4(viewMatrix);
+    //             // let inv = invert4(viewMatrix);
 
-                // const dx = (touch.clientX - startXRotation) / containerRotation.clientWidth;
-                // const dy = (touch.clientY - startYRotation) / containerRotation.clientHeight;
+    //             // const dx = (touch.clientX - startXRotation) / containerRotation.clientWidth;
+    //             // const dy = (touch.clientY - startYRotation) / containerRotation.clientHeight;
 
-                // accumulatedRotationY += dx * touchRotSensitivity; 
-                // accumulatedRotationX += dy * touchRotSensitivity; 
+    //             // accumulatedRotationY += dx * touchRotSensitivity; 
+    //             // accumulatedRotationX += dy * touchRotSensitivity; 
                 
-                // accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
+    //             // accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
 
-                // // 회전 행렬 생성
-                // let rotationX = axisAngleRotationMatrix([1, 0, 0], accumulatedRotationX); // X축 회전
-                // let rotationY = axisAngleRotationMatrix([0, 1, 0], -accumulatedRotationY); // Y축 회전
+    //             // // 회전 행렬 생성
+    //             // let rotationX = axisAngleRotationMatrix([1, 0, 0], accumulatedRotationX); // X축 회전
+    //             // let rotationY = axisAngleRotationMatrix([0, 1, 0], -accumulatedRotationY); // Y축 회전
         
-                // rotationMatrix.value = multiply3x3Matrices(rotationX, rotationY);  
+    //             // rotationMatrix.value = multiply3x3Matrices(rotationX, rotationY);  
         
-                // if(orbitCheck){
-                //     if(!orbitCheckinit){
-                //         orbitCheckinit = true;
-                //         accumulatedRotationY = 0; // Y축 회전 값 초기화
-                //         accumulatedRotationX = 0; // X축 회전 값 초기화
-                //         rotationMatrix = createIdentityMatrix3x3(); //기존 rotationMatrix 초기화
-                //     }
-                //     //초기 틀어짐 방지
-                //     rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, orbit_rotationMatrix.value);  
-                //     console.log(rotationMatrix.value);
+    //             // if(orbitCheck){
+    //             //     if(!orbitCheckinit){
+    //             //         orbitCheckinit = true;
+    //             //         accumulatedRotationY = 0; // Y축 회전 값 초기화
+    //             //         accumulatedRotationX = 0; // X축 회전 값 초기화
+    //             //         rotationMatrix = createIdentityMatrix3x3(); //기존 rotationMatrix 초기화
+    //             //     }
+    //             //     //초기 틀어짐 방지
+    //             //     rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, orbit_rotationMatrix.value);  
+    //             //     console.log(rotationMatrix.value);
 
 
-                // }else{ //spacebar눌러서 viewpoint 받기 전
-                //     rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, init_rotationMatrix.value);
-                // }
+    //             // }else{ //spacebar눌러서 viewpoint 받기 전
+    //             //     rotationMatrix.value = multiply3x3Matrices(rotationMatrix.value, init_rotationMatrix.value);
+    //             // }
 
-                // //Update
-                // inv = updateViewMatrixWithRotation(inv, rotationMatrix.value);
+    //             // //Update
+    //             // inv = updateViewMatrixWithRotation(inv, rotationMatrix.value);
         
-                // viewMatrix = invert4(inv);
-                // moveJoystickMovement2(touch.clientX, touch.clientY);
-                // startXRotation = touch.clientX;
-                // startYRotation = touch.clientY;
-            }
-        }
-    });
+    //             // viewMatrix = invert4(inv);
+    //             // moveJoystickMovement2(touch.clientX, touch.clientY);
+    //             // startXRotation = touch.clientX;
+    //             // startYRotation = touch.clientY;
+    //         }
+    //     }
+    // });
 
-    containerRotation.addEventListener('touchend', (event) => {
-        const touch = Array.from(event.changedTouches).find(t => t.identifier === touchIdRotation);
-        if (touch) {
-            touchIdRotation = null;
-            resetJoystick()
-        }
-    });
-    function resetJoystick() {
-        joystickRotation.style.transform = `translate(-50%, -50%)`;
-    }
+    // containerRotation.addEventListener('touchend', (event) => {
+    //     const touch = Array.from(event.changedTouches).find(t => t.identifier === touchIdRotation);
+    //     if (touch) {
+    //         touchIdRotation = null;
+    //         resetJoystick()
+    //     }
+    // });
+    // function resetJoystick() {
+    //     joystickRotation.style.transform = `translate(-50%, -50%)`;
+    // }
 
-    function moveJoystickMovement2(clientX, clientY) {
-        const rect = containerRotation.getBoundingClientRect();
-        const x = clientX - rect.left - rect.width / 2;
-        const y = clientY - rect.top - rect.height / 2;
-        const angle = Math.atan2(y, x);
-        const distance = Math.min(Math.hypot(x, y), rect.width / 2 - joystickRotation.offsetWidth / 2);
+    // function moveJoystickMovement2(clientX, clientY) {
+    //     const rect = containerRotation.getBoundingClientRect();
+    //     const x = clientX - rect.left - rect.width / 2;
+    //     const y = clientY - rect.top - rect.height / 2;
+    //     const angle = Math.atan2(y, x);
+    //     const distance = Math.min(Math.hypot(x, y), rect.width / 2 - joystickRotation.offsetWidth / 2);
 
-        const joystickX = distance * Math.cos(angle);
-        const joystickY = distance * Math.sin(angle);
+    //     const joystickX = distance * Math.cos(angle);
+    //     const joystickY = distance * Math.sin(angle);
 
-        joystickRotation.style.transform = `translate(${joystickX - 50}%, ${joystickY - 50}%)`;
-    }
-    //조이스틱 구현 끝
+    //     joystickRotation.style.transform = `translate(${joystickX - 50}%, ${joystickY - 50}%)`;
+    // }
+    // //조이스틱 구현 끝
 
     let vertexCount = 0;
 
@@ -1792,4 +1792,3 @@ main().catch((err) => {
     document.getElementById("spinner").style.display = "none";
     document.getElementById("message").innerText = err.toString();
 });
- 
