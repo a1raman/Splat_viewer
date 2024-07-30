@@ -224,45 +224,12 @@
 				z-index: 1000; 
 				display: none; 
 			}
-			/* 조이스틱 구현 Rotation */
-			#joystick-container-rotation {
-				position: absolute;
-				bottom: 5%; /* 화면 하단에서의 위치 (상대적인 위치) */
-				left: 50%; /* 화면 좌측에서의 위치 (중앙에 가까운 위치) */
-				transform: translate(-50%, 0); /* 가운데 정렬 */
-				width: 30vw; /* 화면 너비의 일정 비율 */
-				max-width: 200px; /* 최대 너비 설정 */
-				height: 30vw; /* 화면 너비의 일정 비율 */
-				max-height: 200px; /* 최대 높이 설정 */
-				background-color: rgba(221, 221, 221, 0.7);
-				border-radius: 50%; /* 원형 모양 설정 */
-				z-index: 1000;
-				padding: 10px; /* 내부 여백 설정 */
-				box-sizing: border-box; /* 내부 여백을 포함한 전체 크기 설정 */
-        	}
-			#joystick-rotation {
-				position: absolute;
-				width: 50%; /* 조이스틱 크기를 화면 너비의 비율로 설정 */
-				max-width: 100px; /* 최대 너비 설정 */
-				height: 50%; /* 조이스틱 높이를 화면 높이의 비율로 설정 */
-				max-height: 100px; /* 최대 높이 설정 */
-				background-color: white;
-				border-radius: 50%; /* 원형 모양 설정 */
-				border: 2px solid #aaa;
-				top: 50%; /* 조이스틱을 수직 중앙에 위치 */
-				left: 50%; /* 조이스틱을 수평 중앙에 위치 */
-				transform: translate(-50%, -50%);
-				touch-action: none; /* Prevent default touch actions */
-			}
+
 		</style>
 	</head>
 	<body>
 		<div id="error-message"></div> <!-- 오류 메시지를 표시할 요소 -->
 
-		<!-- 조이스틱 컨테이너 Rotation-->
-		<div id="joystick-container-rotation">
-			<div id="joystick-rotation"></div>
-		</div>
 		<div id="url-buttons">
 			<button onclick="loadSplat('best.splat')">Art</button>
 			<button onclick="loadSplat('4th_floor.splat')">360-24spot</button>
