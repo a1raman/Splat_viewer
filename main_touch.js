@@ -1379,38 +1379,38 @@ async function main() {
             } else if (e.touches.length === 2) {
                 console.log("22");
                 // alert('beep')
-                const dtheta =
-                    Math.atan2(startY - altY, startX - altX) -
-                    Math.atan2(
-                        e.touches[0].clientY - e.touches[1].clientY,
-                        e.touches[0].clientX - e.touches[1].clientX,
-                    );
+                // const dtheta =
+                //     Math.atan2(startY - altY, startX - altX) -
+                //     Math.atan2(
+                //         e.touches[0].clientY - e.touches[1].clientY,
+                //         e.touches[0].clientX - e.touches[1].clientX,
+                //     );
                 const dscale =
                     Math.hypot(startX - altX, startY - altY) /
                     Math.hypot(
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY,
-                    );
-                const dx =
-                    (e.touches[0].clientX +
-                        e.touches[1].clientX -
-                        (startX + altX)) /
-                    2;
-                const dy =
-                    (e.touches[0].clientY +
-                        e.touches[1].clientY -
-                        (startY + altY)) /
-                    2;
+                     );
+                // const dx =
+                //     (e.touches[0].clientX +
+                //         e.touches[1].clientX -
+                //         (startX + altX)) /
+                //     2;
+                // const dy =
+                //     (e.touches[0].clientY +
+                //         e.touches[1].clientY -
+                //         (startY + altY)) /
+                //     2;
                 let inv = invert4(viewMatrix);
                 let tempInv = inv;
 
                 // inv = translate4(inv,  0, 0, d);
                 //inv = rotate4(inv, dtheta, 0, 0, 1);
 
-                tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
+                //tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
 
                 // let preY = inv[13];
-                tempInv = translate4(tempInv, 0, 0, 1.5 * (1 - dscale));
+                tempInv = translate4(tempInv, 0, 0, 0.8 * (1 - dscale));
                 // inv[13] = preY;
 
                 const tx = tempInv[12];
