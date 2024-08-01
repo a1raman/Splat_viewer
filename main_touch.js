@@ -1337,8 +1337,6 @@ async function main() {
     );
     let orbitCheck = false;
     let orbitCheckinit = false;
-    const dscaleDisplay = document.getElementById('dscale-display');
-    dscaleDisplay.textContent = 'Scale: 1';
     canvas.addEventListener(
         "touchmove",
         (e) => {
@@ -1392,7 +1390,6 @@ async function main() {
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY,
                      );
-	    	    dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
                 const dx =
                     (e.touches[0].clientX +
                         e.touches[1].clientX -
@@ -1442,8 +1439,8 @@ async function main() {
         (e) => {
             e.preventDefault();
             down = false;
-            // startX = 0;
-            // startY = 0;
+            startX = 0;
+            startY = 0;
         },
         { passive: false },
     );
