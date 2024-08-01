@@ -225,21 +225,24 @@
 				display: none; 
 			}
 
+			#dscale-display {
+				position: absolute;
+				top: 10px;
+				left: 10px;
+				background: rgba(0, 0, 0, 0.5);
+				color: white;
+				padding: 5px;
+				border-radius: 3px;
+				font-family: Arial, sans-serif;
+				z-index: 1000; 
+
+				font-size: 16px;
+        	}
 		</style>
 	</head>
 	<body>
 		<div id="error-message"></div> <!-- 오류 메시지를 표시할 요소 -->
-
-		<div id="url-buttons">
-			<button onclick="loadSplat('best.splat')">Art</button>
-			<button onclick="loadSplat('4th_floor.splat')">360-24spot</button>
-			<!-- <button onclick="loadSplat('tbRoom.splat')">TestBed</button> -->
-			<!-- <button onclick="loadSplat('garden.splat')">Garden</button> -->
-			<button onclick="loadSplat('360Sample.splat')">360-9spot</button>
-			<button onclick="loadSplat('0.5xVideoSample.splat')">0.5xVid</button>
-			<button onclick="loadSplat('1xVideoSample.splat')">1xVid</button>
-			<button onclick="loadSplat('splat_khtest.splat')">1xVid</button>
-		</div>
+		<div id="dscale-display">Scale: 1</div>
 
 		<script>
 			if(location.host.includes('hf.space')) document.body.classList.add('nohf');
@@ -249,7 +252,7 @@
 		</details>
 			
 		</div>
- 
+
 		<div id="progress"></div>
 
 		<div id="message"></div>
