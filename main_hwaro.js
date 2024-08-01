@@ -915,7 +915,7 @@ void main () {
 
 `.trim();
 
-let currentUrl = "hwaro.splat";
+let currentUrl = "hwaro_best.splat";
 // loadSplat 함수 추가
 async function loadSplat(url) {
     currentUrl = url;
