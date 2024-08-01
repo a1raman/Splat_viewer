@@ -1314,9 +1314,6 @@ async function main() {
     canvas.addEventListener("mouseout", (e) => {
         down = false;
     });
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(value, max));
-    }
     let altX = 0,
         altY = 0;
     canvas.addEventListener(
@@ -1324,9 +1321,15 @@ async function main() {
         (e) => {
             e.preventDefault();
             if (e.touches.length === 1) {
-                carousel = false;
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
+                down = 1;
+            }else if (e.touches.length === 2) {
+                // console.log('beep')
+                startX = e.touches[0].clientX;
+                altX = e.touches[1].clientX;
+                startY = e.touches[0].clientY;
+                altY = e.touches[1].clientY;
                 down = 1;
             }
         },
@@ -1389,11 +1392,7 @@ async function main() {
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY,
                      );
-                // 클램프 적용
-                const minScale = 0.5;  // 최소 스케일 값 (예시)
-                const maxScale = 2.0;  // 최대 스케일 값 (예시)
-                const clampedScale = clamp(dscale, minScale, maxScale);
-                dscaleDisplay.textContent = `Scale: ${clampedScale.toFixed(2)}`; // 소수점 두 자리까지 표시
+	    	    dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
                 const dx =
                     (e.touches[0].clientX +
                         e.touches[1].clientX -
@@ -1413,7 +1412,7 @@ async function main() {
                 tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
 
                 // let preY = inv[13];
-                tempInv = translate4(tempInv, 0, 0, 0.4 * (1 - clampedScale));
+                tempInv = translate4(tempInv, 0, 0, 0.4 * (1 - dscale));
                 // inv[13] = preY;
 
                 const tx = tempInv[12];
@@ -1443,8 +1442,8 @@ async function main() {
         (e) => {
             e.preventDefault();
             down = false;
-            startX = 0;
-            startY = 0;
+            // startX = 0;
+            // startY = 0;
         },
         { passive: false },
     );
