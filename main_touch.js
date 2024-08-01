@@ -1341,8 +1341,8 @@ async function main() {
                 const dx = e.touches[0].clientX - startX
                 const dy = e.touches[0].clientY - startY
 
-                accumulatedRotationY += dx * 0.1; 
-                accumulatedRotationX += dy * 0.1; 
+                accumulatedRotationY += dx * -0.1; 
+                accumulatedRotationX += dy * -0.1; 
                 
                 accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
 
