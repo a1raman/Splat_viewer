@@ -1423,7 +1423,7 @@ async function main() {
                 tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
 
                 // let preY = inv[13];
-                tempInv = translate4(tempInv, 0, 0, 0.4 * (1 - dscale));
+                tempInv = translate4(tempInv, 0, 0, 0.01 * (1 - dscale));
                 // inv[13] = preY;
 
                 const tx = tempInv[12];
