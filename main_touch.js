@@ -1316,6 +1316,11 @@ async function main() {
     });
     let altX = 0,
         altY = 0;
+
+    // 핀치 제스처의 초기 거리와 누적 스케일을 저장할 변수
+    let initialDistance = null;
+    let accumulatedScale = 1;
+
     canvas.addEventListener(
         "touchstart",
         (e) => {
@@ -1325,7 +1330,14 @@ async function main() {
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
                 down = 1;
-            } 
+            }else if (e.touches.length === 2) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                altX = e.touches[1].clientX;
+                altY = e.touches[1].clientY;
+                initialDistance = Math.hypot(startX - altX, startY - altY);
+
+            }
         },
         { passive: false },
     );
@@ -1379,21 +1391,19 @@ async function main() {
                 startY = e.touches[0].clientY;
                 
             } else if (e.touches.length === 2) {
-                console.log("22");
-                // alert('beep')
-                // const dtheta =
-                //     Math.atan2(startY - altY, startX - altX) -
-                //     Math.atan2(
-                //         e.touches[0].clientY - e.touches[1].clientY,
-                //         e.touches[0].clientX - e.touches[1].clientX,
-                //     );
-                const dscale =
-                    Math.hypot(startX - altX, startY - altY) /
-                    Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY,
-                     );
-	    	dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
+                const currentX1 = e.touches[0].clientX;
+                const currentY1 = e.touches[0].clientY;
+                const currentX2 = e.touches[1].clientX;
+                const currentY2 = e.touches[1].clientY;
+        
+                // 현재 거리 계산
+                const currentDistance = Math.hypot(currentX1 - currentX2, currentY1 - currentY2);
+        
+                // 스케일 변화 비율 계산
+                const dscale = currentDistance / initialDistance;
+                
+                
+	    	    dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
                 const dx =
                     (e.touches[0].clientX +
                         e.touches[1].clientX -
@@ -1430,10 +1440,10 @@ async function main() {
                     console.log('Collision detected, movement blocked.');
                 }
 
-                startX = e.touches[0].clientX;
-                altX = e.touches[1].clientX;
-                startY = e.touches[0].clientY;
-                altY = e.touches[1].clientY;
+                startX = currentX1;
+                altX = currentX2;
+                startY = currentY1;
+                altY = currentY2;
             }
         },
         { passive: false },
