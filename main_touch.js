@@ -1380,15 +1380,12 @@ async function main() {
                 
             } else if (e.touches.length === 2) {
 
-                // const dscale =
-                //     Math.hypot(startX - altX, startY - altY) /
-                //     Math.hypot(
-                //         e.touches[0].clientX - e.touches[1].clientX,
-                //         e.touches[0].clientY - e.touches[1].clientY,
-                //      );
-                const xDiff = e.touches[0].clientX = e.touches[1].clientY;
-                const yDiff = e.touches[0].clientY = e.touches[1].clientX;
-                const dscale = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+                const dscale =
+                    Math.hypot(startX - altX, startY - altY) /
+                    Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY,
+                     );
 	    	dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
                 const dx =
                     (e.touches[0].clientX +
