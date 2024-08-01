@@ -1300,7 +1300,7 @@ async function main() {
         // inv = rotate4(inv, dx, 0, -1, 0);
         // inv = rotate4(inv, -dy, -1, 0, 0);
         // viewMatrix = invert4(inv);
-        // //console.log(viewMatrix);
+        // //console.log(viewMatrix); 
 
         // startX = e.clientX;
         // startY = e.clientY;
