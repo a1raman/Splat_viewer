@@ -1391,23 +1391,23 @@ async function main() {
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY,
                      );
-                // const dx =
-                //     (e.touches[0].clientX +
-                //         e.touches[1].clientX -
-                //         (startX + altX)) /
-                //     2;
-                // const dy =
-                //     (e.touches[0].clientY +
-                //         e.touches[1].clientY -
-                //         (startY + altY)) /
-                //     2;
+                const dx =
+                    (e.touches[0].clientX +
+                        e.touches[1].clientX -
+                        (startX + altX)) /
+                    2;
+                const dy =
+                    (e.touches[0].clientY +
+                        e.touches[1].clientY -
+                        (startY + altY)) /
+                    2;
                 let inv = invert4(viewMatrix);
                 let tempInv = inv;
 
                 // inv = translate4(inv,  0, 0, d);
                 //inv = rotate4(inv, dtheta, 0, 0, 1);
 
-                //tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
+                tempInv = translate4(tempInv, -dx / innerWidth, -dy / innerHeight, 0);
 
                 // let preY = inv[13];
                 tempInv = translate4(tempInv, 0, 0, 0.8 * (1 - dscale));
