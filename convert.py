@@ -64,4 +64,28 @@ def process_ply_to_splat(ply_file_path):
     
     return buffer.getvalue()
 
-# ... (나머지 코드는 동일)
+def save_splat_file(splat_data, output_path):
+    with open(output_path, "wb") as f:
+        f.write(splat_data)
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert PLY files to SPLAT format.")
+    parser.add_argument(
+        "input_files", nargs="+", help="The input PLY files to process."
+    )
+    parser.add_argument(
+        "--output", "-o", default="output.splat", help="The output SPLAT file."
+    )
+    args = parser.parse_args()
+    
+    for input_file in args.input_files:
+        print(f"Processing {input_file}...")
+        splat_data = process_ply_to_splat(input_file)
+        output_file = (
+            args.output if len(args.input_files) == 1 else input_file + ".splat"
+        )
+        save_splat_file(splat_data, output_file)
+        print(f"Saved {output_file}")
+
+if __name__ == "__main__":
+    main()
