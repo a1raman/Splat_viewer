@@ -1386,6 +1386,9 @@ async function main() {
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY,
                      );
+		if(dscale > 1){
+                    dscale = 0;
+                }
 	    	dscaleDisplay.textContent = `Scale: ${dscale.toFixed(2)}`; // 소수점 두 자리까지 표시
                 const dx =
                     (e.touches[0].clientX +
