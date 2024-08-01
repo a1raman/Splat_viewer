@@ -1341,14 +1341,14 @@ async function main() {
                 const dx = e.touches[0].clientX - startX
                 const dy = e.touches[0].clientY - startY
 
-                accumulatedRotationY += dx * -0.1; 
-                accumulatedRotationX += dy * -0.1; 
+                accumulatedRotationY += dx * 0.1; 
+                accumulatedRotationX += dy * 0.1; 
                 
                 accumulatedRotationX = Math.max(minRotationX, Math.min(accumulatedRotationX, maxRotationX));
 
                 // 회전 행렬 생성
-                let rotationX = axisAngleRotationMatrix([1, 0, 0], accumulatedRotationX); // X축 회전
-                let rotationY = axisAngleRotationMatrix([0, 1, 0], -accumulatedRotationY); // Y축 회전
+                let rotationX = axisAngleRotationMatrix([1, 0, 0], -accumulatedRotationX); // X축 회전
+                let rotationY = axisAngleRotationMatrix([0, 1, 0], accumulatedRotationY); // Y축 회전
         
                 rotationMatrix.value = multiply3x3Matrices(rotationX, rotationY);  
         
