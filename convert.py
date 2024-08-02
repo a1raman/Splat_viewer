@@ -3,6 +3,13 @@ import numpy as np
 import argparse
 from io import BytesIO
 
+# SH Constants
+SH_C0 = 0.28209479177387814
+SH_C1 = 0.4886025119029199
+SH_C2 = 1.0925484305920792
+SH_C3 = 0.31539156525252005
+SH_C4 = 0.5462742152960396
+
 def process_ply_to_splat(ply_file_path):
     plydata = PlyData.read(ply_file_path)
     vert = plydata["vertex"]
@@ -25,31 +32,30 @@ def process_ply_to_splat(ply_file_path):
             dtype=np.float32,
         )
         
-        # SH coefficients up to level 2 (9 coefficients in total)
-        sh_coeffs = np.array([
-            v["f_dc_0"], v["f_dc_1"], v["f_dc_2"],  # L0 (1 coefficient per color channel)
-            v["f_rest_0"], v["f_rest_1"], v["f_rest_2"],  # L1 (3 coefficients)
-            v["f_rest_3"], v["f_rest_4"], v["f_rest_5"],  # L2 (5 coefficients)
-            v["f_rest_6"], v["f_rest_7"], v["f_rest_8"],
-            v["f_rest_9"], v["f_rest_10"]
-        ], dtype=np.float32)
-        
-        # Normalize SH coefficients
-        SH_C0 = 0.28209479177387814
-        SH_C1 = 0.48860251190291992
-        SH_C2 = 1.0925484305920792
-        
-        sh_coeffs[0:3] *= SH_C0  # L0
-        sh_coeffs[3:6] *= SH_C1  # L1
-        sh_coeffs[6:11] *= SH_C2  # L2
-        
-        # Convert SH coefficients to RGB color (using only L0 for simplicity)
-        color = np.array([
-            0.5 + sh_coeffs[0],
-            0.5 + sh_coeffs[1],
-            0.5 + sh_coeffs[2],
-            1 / (1 + np.exp(-v["opacity"])),
-        ])
+        # Calculate color using SH0, SH1, SH2 coefficients
+        color = np.array(
+            [
+                0.5 + SH_C0 * v["f_dc_0"] 
+                    + SH_C1 * v["f_dc_3"] * v["x"]
+                    + SH_C2 * v["f_dc_5"] * (2*v["z"]**2 - v["x"]**2 - v["y"]**2)
+                    + SH_C3 * v["f_dc_6"] * (v["x"]**2 - v["y"]**2)
+                    + SH_C4 * v["f_dc_8"] * (v["x"] * v["y"]),
+
+                0.5 + SH_C0 * v["f_dc_1"]
+                    + SH_C1 * v["f_dc_4"] * v["y"]
+                    + SH_C2 * v["f_dc_5"] * (2*v["z"]**2 - v["x"]**2 - v["y"]**2)
+                    + SH_C3 * v["f_dc_6"] * (v["x"]**2 - v["y"]**2)
+                    + SH_C4 * v["f_dc_8"] * (v["x"] * v["y"]),
+
+                0.5 + SH_C0 * v["f_dc_2"]
+                    + SH_C1 * v["f_dc_4"] * v["z"]
+                    + SH_C2 * v["f_dc_5"] * (2*v["z"]**2 - v["x"]**2 - v["y"]**2)
+                    + SH_C3 * v["f_dc_6"] * (v["x"]**2 - v["y"]**2)
+                    + SH_C4 * v["f_dc_8"] * (v["x"] * v["y"]),
+
+                1 / (1 + np.exp(-v["opacity"])),
+            ]
+        )
         
         buffer.write(position.tobytes())
         buffer.write(scales.tobytes())
@@ -60,13 +66,14 @@ def process_ply_to_splat(ply_file_path):
             .astype(np.uint8)
             .tobytes()
         )
-        buffer.write(sh_coeffs.tobytes())
-    
+
     return buffer.getvalue()
+
 
 def save_splat_file(splat_data, output_path):
     with open(output_path, "wb") as f:
         f.write(splat_data)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Convert PLY files to SPLAT format.")
@@ -77,7 +84,6 @@ def main():
         "--output", "-o", default="output.splat", help="The output SPLAT file."
     )
     args = parser.parse_args()
-    
     for input_file in args.input_files:
         print(f"Processing {input_file}...")
         splat_data = process_ply_to_splat(input_file)
@@ -86,6 +92,7 @@ def main():
         )
         save_splat_file(splat_data, output_file)
         print(f"Saved {output_file}")
+
 
 if __name__ == "__main__":
     main()
